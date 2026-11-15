@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Калкулатор за риск: SLE, EF, ARO, ALE</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--text:#1c2430;--muted:#5b6675;--line:#dfe3e8;--accent:#2457d6;--good:#17803d;--bad:#b42318}
+  @media (prefers-color-scheme:dark){:root{--bg:#10141a;--card:#181e27;--text:#e8ecf2;--muted:#9aa5b4;--line:#2a3340;--accent:#6b97ff;--good:#4cc27a;--bad:#ff7b6e}}
+  *{box-sizing:border-box}
+  body{margin:0;font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  main{max-width:960px;margin:0 auto;padding:24px 16px 48px}
+  h1{font-size:1.6rem;margin:0 0 4px}
+  h2{font-size:1.1rem;margin:0 0 12px}
+  .sub{color:var(--muted);margin:0 0 20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+  label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+  input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font:inherit}
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .hint{font-size:.75rem;color:var(--muted);margin-top:3px}
+  .results{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:6px}
+  .res{border:1px solid var(--line);border-radius:10px;padding:12px}
+  .res .k{font-size:.8rem;color:var(--muted)}
+  .res .v{font-size:1.35rem;font-weight:650;margin-top:2px;word-break:break-word}
+  .res.main{border-color:var(--accent)}
+  .good{color:var(--good)}.bad{color:var(--bad)}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  button{padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;cursor:pointer}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button:hover{filter:brightness(1.07)}
+  .tw{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left;white-space:normal}
+  tfoot td{font-weight:650}
+  .formula{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9rem;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;line-height:1.8}
+  .err{color:var(--bad);font-size:.85rem;min-height:1.2em;margin-top:8px}
+  .gl{margin:0}
+  .gl dt{font-weight:650;margin-top:14px}
+  .gl dt:first-child{margin-top:0}
+  .gl dt span{font-weight:400;color:var(--muted)}
+  .gl dd{margin:2px 0 0;color:var(--text)}
+  .gl dd small{display:block;color:var(--muted);margin-top:2px}
+  .gl code{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:0 5px}
+  .sub a{color:var(--accent)}
+  footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:24px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Калкулатор за количествена оценка на риска</h1>
+  <p class="sub">SLE · EF · ARO · ALE · ROSI. Всичко се изчислява в браузъра, без сървър и без външни библиотеки. <a href="#glossary">Какво означават показателите ↓</a></p>
+
+  <div class="card">
+    <h2>Формули</h2>
+    <div class="formula">
+      SLE = AV × EF<br>
+      ALE = SLE × ARO<br>
+      ROSI = (ALE преди − ALE след − годишна цена на защитата) / годишна цена на защитата
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Входни данни</h2>
+    <div class="grid">
+      <div><label for="name">Име на риска / актива</label><input id="name" type="text" placeholder="напр. Изтичане на клиентска база"></div>
+      <div><label for="cur">Валута</label>
+        <select id="cur"><option>EUR</option><option>BGN</option><option>USD</option><option>GBP</option></select></div>
+      <div><label for="av">AV: стойност на актива</label><input id="av" type="number" min="0" step="any" placeholder="въведете стойност"><div class="hint">Asset Value</div></div>
+      <div><label for="ef">EF: фактор на експозиция (%)</label><input id="ef" type="number" min="0" max="100" step="any" placeholder="0–100"><div class="hint">Дял от актива, който се губи при инцидент (0–100)</div></div>
+      <div><label for="aro">ARO: инциденти за година</label><input id="aro" type="number" min="0" step="any" placeholder="напр. 0.5"><div class="hint">Annualized Rate of Occurrence. 1 на 2 години = 0.5; 3 пъти годишно = 3</div></div>
+    </div>
+
+    <h2 style="margin-top:18px">Защита (по избор)</h2>
+    <div class="grid">
+      <div><label for="cost">Годишна цена на защитата</label><input id="cost" type="number" min="0" step="any" placeholder="0"></div>
+      <div><label for="ef2">EF след защита (%)</label><input id="ef2" type="number" min="0" max="100" step="any" placeholder="както преди"></div>
+      <div><label for="aro2">ARO след защита</label><input id="aro2" type="number" min="0" step="any" placeholder="както преди"></div>
+    </div>
+    <div class="err" id="err" role="alert"></div>
+
+    <h2 style="margin-top:8px">Резултат</h2>
+    <div class="results">
+      <div class="res"><div class="k">SLE (загуба при един инцидент)</div><div class="v" id="sle">–</div></div>
+      <div class="res main"><div class="k">ALE (очаквана годишна загуба)</div><div class="v" id="ale">–</div></div>
+      <div class="res"><div class="k">ALE след защита</div><div class="v" id="ale2">–</div></div>
+      <div class="res"><div class="k">Годишна полза от защитата</div><div class="v" id="saving">–</div></div>
+      <div class="res"><div class="k">ROSI</div><div class="v" id="rosi">–</div></div>
+    </div>
+    <div class="btns">
+      <button class="primary" id="add">Добави в регистъра</button>
+      <button id="reset">Нулирай</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Регистър на рисковете</h2>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Риск</th><th>AV</th><th>EF</th><th>ARO</th><th>SLE</th><th>ALE</th><th>ALE след</th><th></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="8" style="text-align:center;color:var(--muted)">Няма добавени рискове.</td></tr></tbody>
+        <tfoot><tr><td>Общо</td><td></td><td></td><td></td><td></td><td id="tAle">–</td><td id="tAle2">–</td><td></td></tr></tfoot>
+      </table>
+    </div>
+    <div class="btns">
+      <button id="csv">Изтегли CSV</button>
+      <button id="clear">Изчисти регистъра</button>
+    </div>
+    <p class="hint">Данните се пазят само локално в браузъра (localStorage) и не се изпращат никъде.</p>
+  </div>
+
+  <div class="card" id="glossary">
+    <h2>Какво означават показателите</h2>
+    <dl class="gl">
+      <dt>AV <span>– Asset Value, стойност на актива</span></dt>
+      <dd>Колко би струвало да се замени или възстанови активът: цена на хардуер и софтуер, стойност на данните, приходи, които активът генерира.
+        <small>Определя се от счетоводни данни, оферти и собственика на процеса. Пример: уеб магазин за 80 000 €.</small></dd>
+
+      <dt>EF <span>– Exposure Factor, фактор на експозиция</span></dt>
+      <dd>Процентът от AV, който се губи при един инцидент (0–100%). Зависи от двойката актив и заплаха: пожар, ransomware и кражба дават различен EF. Само пълна загуба е 100%.
+        <small>Определя се от исторически данни, експертна оценка, анализ на въздействието или сценарии. Пример: DDoS за 2 дни струва 10 500 € от 80 000 €, около 15%.</small></dd>
+
+      <dt>SLE <span>– Single Loss Expectancy, загуба при един инцидент</span></dt>
+      <dd>Парите, които се губят при едно сбъдване на заплахата. <code>SLE = AV × EF</code>
+        <small>Пример: 80 000 × 0,15 = 12 000 €.</small></dd>
+
+      <dt>ARO <span>– Annualized Rate of Occurrence, годишна честота</span></dt>
+      <dd>Колко пъти годишно се очаква заплахата да се сбъдне. Допуска дробни стойности: 0,5 е веднъж на 2 години, 4 е четири пъти годишно.
+        <small>Определя се от собствената история на инцидентите, отраслови отчети (CERT, застрахователи, Verizon DBIR) и наличните слабости. Пример: 2 атаки за последната година дават ARO = 2.</small></dd>
+
+      <dt>ALE <span>– Annualized Loss Expectancy, очаквана годишна загуба</span></dt>
+      <dd>Средната загуба на година от този риск. Използва се за сравнение и подреждане на рисковете: най-високият ALE е най-голям финансов приоритет. <code>ALE = SLE × ARO</code>
+        <small>Пример: 12 000 × 2 = 24 000 € годишно. Това е очакване, не прогноза: в реалността загубата идва на скокове.</small></dd>
+
+      <dt>Годишна цена на защитата</dt>
+      <dd>Всички разходи за мярката, разпределени на година: лиценз, хардуер (разделен на срока на ползване), внедряване, поддръжка, обучение.</dd>
+
+      <dt>EF след и ARO след защита</dt>
+      <dd>Очакваните стойности, след като защитата е въведена. Превантивните мерки (MFA, актуализации) намаляват най-вече ARO, а мерките за ограничаване на щетите (архиви, резервни системи) намаляват най-вече EF.
+        <small>Най-несигурната част от оценката, затова бъдете консервативни.</small></dd>
+
+      <dt>ALE след защита</dt>
+      <dd>Очакваната годишна загуба с работеща защита. <code>AV × EF след × ARO след</code></dd>
+
+      <dt>Годишна полза от защитата</dt>
+      <dd>Колко загуба на година се избягва. <code>ALE преди − ALE след</code></dd>
+
+      <dt>ROSI <span>– Return on Security Investment</span></dt>
+      <dd>Възвръщаемост на защитата. <code>(полза − цена) / цена</code>
+        <small>Над 0% защитата спестява повече, отколкото струва. Под 0% е по-скъпа от риска, който намалява. Пример: (20 000 − 5 000) / 5 000 = 300%.</small></dd>
+    </dl>
+  </div>
+
+  <footer>Оценките са ориентировъчни и зависят от качеството на входните данни.</footer>
+</main>
+
+<script>
+(function(){
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const KEY = 'risk-calculator-register-v1';
+  let register = [];
+
+  try { register = JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ register = []; }
+
+  const fmt = (n, cur) => new Intl.NumberFormat('bg-BG',{style:'currency',currency:cur,maximumFractionDigits:2}).format(n);
+  const num = id => { const v = $(id).value.trim(); return v === '' ? null : Number(v); };
+
+  function compute(){
+    const av = num('av'), ef = num('ef'), aro = num('aro');
+    if (av === null || ef === null || aro === null) return {incomplete:true};
+    const cost = num('cost') ?? 0;
+    const ef2 = num('ef2') ?? ef, aro2 = num('aro2') ?? aro;
+    const bad = [av,ef,aro,cost,ef2,aro2].some(v => v === null || !Number.isFinite(v) || v < 0);
+    if (bad) return {error:'Въведете валидни неотрицателни числа.'};
+    if (ef > 100 || ef2 > 100) return {error:'EF трябва да е между 0 и 100%.'};
+    const sle = av * ef/100, ale = sle * aro;
+    const sle2 = av * ef2/100, ale2 = sle2 * aro2;
+    const saving = ale - ale2;
+    const rosi = cost > 0 ? (saving - cost) / cost : null;
+    return {av,ef,aro,cost,ef2,aro2,sle,ale,sle2,ale2,saving,rosi};
+  }
+
+  function render(){
+    const cur = $('cur').value, r = compute();
+    $('err').textContent = r.error || '';
+    if (r.error || r.incomplete){
+      $('sale'.slice(0,0) + 'sle'); ['sle','ale','ale2','saving','rosi'].forEach(i => $(i).textContent = '–'); return null; }
+    $('sle').textContent = fmt(r.sle,cur);
+    $('ale').textContent = fmt(r.ale,cur);
+    $('ale2').textContent = fmt(r.ale2,cur);
+    const s = $('saving'); s.textContent = fmt(r.saving,cur);
+    s.className = 'v ' + (r.saving - r.cost > 0 ? 'good' : (r.cost > 0 ? 'bad' : ''));
+    const ro = $('rosi');
+    if (r.rosi === null){ ro.textContent = '–'; ro.className = 'v'; }
+    else { ro.textContent = (r.rosi*100).toFixed(1) + '%'; ro.className = 'v ' + (r.rosi > 0 ? 'good' : 'bad'); }
+    return r;
+  }
+
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(register)); } catch(e){} }
+
+  function renderTable(){
+    const tb = $('rows');
+    tb.textContent = '';
+    if (!register.length){
+      const tr = document.createElement('tr'), td = document.createElement('td');
+      td.colSpan = 8; td.style.textAlign = 'center'; td.style.color = 'var(--muted)';
+      td.textContent = 'Няма добавени рискове.'; tr.appendChild(td); tb.appendChild(tr);
+      $('tAle').textContent = '–'; $('tAle2').textContent = '–'; return;
+    }
+    let sum = 0, sum2 = 0, cur0 = register[0].cur, mixed = false;
+    register.forEach((e,i) => {
+      if (e.cur !== cur0) mixed = true;
+      sum += e.ale; sum2 += e.ale2;
+      const tr = document.createElement('tr');
+      const cells = [e.name || ('Риск ' + (i+1)), fmt(e.av,e.cur), e.ef + '%', String(e.aro), fmt(e.sle,e.cur), fmt(e.ale,e.cur), fmt(e.ale2,e.cur)];
+      cells.forEach(t => { const td = document.createElement('td'); td.textContent = t; tr.appendChild(td); });
+      const td = document.createElement('td'), b = document.createElement('button');
+      b.textContent = '✕'; b.setAttribute('aria-label','Премахни'); b.onclick = () => { register.splice(i,1); save(); renderTable(); };
+      td.appendChild(b); tr.appendChild(td); tb.appendChild(tr);
+    });
+    $('tAle').textContent = mixed ? 'различни валути' : fmt(sum,cur0);
+    $('tAle2').textContent = mixed ? '' : fmt(sum2,cur0);
+  }
+
+  $('add').onclick = () => {
+    const r = render(); if (!r) return;
+    register.push({name:$('name').value.trim(),cur:$('cur').value,av:r.av,ef:r.ef,aro:r.aro,sle:r.sle,ale:r.ale,ale2:r.ale2,cost:r.cost});
+    save(); renderTable();
+  };
+  $('clear').onclick = () => { if (register.length && confirm('Да изчистя ли целия регистър?')){ register = []; save(); renderTable(); } };
+  $('reset').onclick = () => {
+    $('name').value=''; $('av').value=100000; $('ef').value=40; $('aro').value=0.5;
+    $('cost').value=0; $('ef2').value=''; $('aro2').value=''; render();
+  };
+
+  const csvCell = v => { let s = String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g,'""') + '"'; };
+  $('csv').onclick = () => {
+    if (!register.length) return;
+    const head = ['Риск','Валута','AV','EF %','ARO','SLE','ALE','ALE след защита','Цена на защитата'];
+    const lines = [head.map(csvCell).join(',')].concat(register.map(e =>
+      [e.name,e.cur,e.av,e.ef,e.aro,e.sle,e.ale,e.ale2,e.cost].map(csvCell).join(',')));
+    const blob = new Blob(['\ufeff' + lines.join('\r\n')], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'risk-register.csv';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  ['av','ef','aro','cost','ef2','aro2','cur'].forEach(id => $(id).addEventListener('input', render));
+  render(); renderTable();
+})();
+</script>
+</body>
+</html>
