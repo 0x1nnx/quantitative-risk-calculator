@@ -1,4 +1,4 @@
-# ALE Risk Calculator
+# Quantitative Risk Calculator
 
 A lightweight, browser-based quantitative risk calculator. Enter an asset value, an exposure factor and an annual rate of occurrence to get **SLE**, **ALE** and, optionally, the **ROSI** of a security control.
 
